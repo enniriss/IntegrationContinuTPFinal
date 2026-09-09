@@ -1,27 +1,44 @@
 name: GitHub Actions Demo
 
-on: 
+on:
   push:
+
 jobs:
-  Explore-GitHub-Actions:
-    runs-on: ubuntu-latest
-
-    steps:
-      
-      - run: echo "baka"
-      - run: echo "🎉 The job was automatically triggered."
-      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-
   docker-orchestration:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Build Docker image
         run: docker build -t function .
 
-      - name: Run Docker container
-        run: docker run --name function_container function
+      - name: Run Flask API
+        run: |
+          docker run -d \
+            --name function_container \
+            -p 8000:8000 \
+            function
 
+      - name: Check API health
+        run: |
+          for i in {1..30}; do
+            if curl -f http://localhost:8000/health; then
+              echo "API is ready"
+              exit 0
+            fi
+            echo "Waiting for API..."
+            sleep 1
+          done
+
+          echo "API failed to start"
+          docker logs function_container
+          exit 1
+
+      - name: Call API
+        run: |
+          curl http://localhost:8000/
+
+      - name: API logs
+        if: always()
+        run: docker logs function_container
